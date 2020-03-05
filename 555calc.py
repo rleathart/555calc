@@ -36,9 +36,6 @@ for n in range(-12,-7):
     for c in cValues:
         C.append(float('{:.3g}'.format(c*10**n)))
 
-# Could maybe impletment these into the log arguments for
-# the ChargeTime class but it's a lot of typing
-
 Vs     = 5
 Vth    = 3.3
 VthMin = 2.4
@@ -46,6 +43,14 @@ VthMax = 4.2
 Vtr    = 1.67
 VtrMin = 1.1
 VtrMax = 2.2
+
+t3lDes  = (Vth - 5)/(Vtr - 5)
+t3lLow  = (VthMax - 5)/(VtrMax - 5)
+t3lHigh = (VthMin - 5)/(VtrMin - 5)
+
+t4lDes  = Vtr/Vth
+t4lLow  = VtrMax/VthMax
+t4lHigh = VtrMin/VthMin
 
 rTol = 0.01
 cTol = 0.1
@@ -64,9 +69,8 @@ for vr2 in VR2:
     for R7 in R:
         for R6 in R:
             for x in C:
-                # log values pre calculated
-                t3 = ChargeTime(R7+R6,x,vr2,rTol,cTol,(170/333),(2/7),(2/3))
-                t4 = ChargeTime(R6,x,vr2,rTol,cTol,(167/330),(11/21),(11/24))
+                t3 = ChargeTime(R7+R6,x,vr2,rTol,cTol,t3lDes,t3lLow,t3lHigh)
+                t4 = ChargeTime(R6,x,vr2,rTol,cTol,t4lDes,t4lLow,t4lHigh)
 
                 fmaxDesign = 1/(t3.minDesign + t4.minDesign)
                 fminDesign = 1/(t3.maxDesign + t4.maxDesign)
