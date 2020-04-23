@@ -61,7 +61,8 @@ VtrMin = 1.1  #
 VtrMax = 2.2  #
 
 '''
-Here we define the expressions to go inside the ln() function in the ChargeTime() class so that the declarations of t3 and t4 aren't too messy
+Here we define the expressions to go inside the ln() function in the
+ChargeTime() class so that the declarations of t3 and t4 aren't too messy
 '''
 t3lDes  = (Vth - 5)/(Vtr - 5)
 t3lLow  = (VthMax - 5)/(VtrMax - 5)
