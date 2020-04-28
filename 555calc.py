@@ -1,6 +1,11 @@
 from math import log
 from engineering_notation import EngNumber
 
+'''
+Requires the 'engineering_notation' package:
+    $ pip3 install engineering_notation
+'''
+
 def MaxCurrent(Vs,Vc,R6,R7,tol):
     I1 = Vs/((R7)*(1+tol))     # Current through R7
     I2 = Vc/((R6)*(1+tol))     # Current through R6/VR2
@@ -15,6 +20,8 @@ So t3.maxLow is a larger value than t3.maxHigh because the larger
 value gives the lower frequency.
 i.e. Low variables are those at the upper end of their tolerance
      High variables are at the lower end of their tolerance.
+Also note that this script will probably take quite a while to run
+(c. 15 seconds on a modern computer).
 '''
 
 class ChargeTime:
@@ -64,9 +71,10 @@ VtrMax = 2.2  #
 Here we define the expressions to go inside the ln() function in the
 ChargeTime() class so that the declarations of t3 and t4 aren't too messy
 '''
-t3lDes  = (Vth - 5)/(Vtr - 5)
-t3lLow  = (VthMax - 5)/(VtrMax - 5)
-t3lHigh = (VthMin - 5)/(VtrMin - 5)
+
+t3lDes  = (Vth - Vs)/(Vtr - Vs)
+t3lLow  = (VthMax - Vs)/(VtrMax - Vs)
+t3lHigh = (VthMin - Vs)/(VtrMin - Vs)
 
 t4lDes  = Vtr/Vth
 t4lLow  = VtrMax/VthMax
@@ -77,13 +85,17 @@ cTol = 0.1
 
 fDiff = 50000    # Set maximum acceptable delta between fMin and fMax
 
-tDiff = 0.06     # Set maximum the delta from 1.7 of t3/t4
+tDiff = 0.06     # Set maximum delta from 1.7 of t3/t4
 
 solList = []     # Empty list where we will store solutions
 
 fTarget = 38000  # Target frequency
 tMin    = 600e-9 # Rise time of IR LED
 iMax    = 10e-3  # Maximum discharge current
+
+'''
+Main loop where we iterate through all permutations of component values
+'''
 
 for vr2 in VR2:
     for R7 in R:
@@ -105,10 +117,24 @@ for vr2 in VR2:
                 DischMaxLow    = MaxCurrent(Vs,VthMax,R6,R7,0.01)
                 DischMaxHigh   = MaxCurrent(Vs,VthMin,R6,R7,-0.01)
 
-                vr2Estim = (((1/(fTarget*x))-(R7*log((5-Vtr)\
-                        /(5-Vth))))/log((5-Vtr)*Vth/((5-Vth)*Vtr)))-R6
+                '''
+                Calculate the ideal value for VR2 given that we want
+                fTarget. I.e. solve f=1/(t3+t4) for VR2
+                '''
+
+                vr2Estim = -(\
+                        1/(x*fTarget)\
+                        + R6*(log((Vth-Vs)/(Vtr-Vs))+log(Vtr/Vth))\
+                        + R7*log((Vth-Vs)/(Vtr-Vs))\
+                        )\
+                        * (log((Vth-Vs)/(Vtr-Vs)) + log(Vtr/Vth))**-1
+
                 t3Estim = -(R7 + R6 + vr2Estim)*x*log((Vth-5)/(Vtr-5))
                 t4Estim = -(R6 + vr2Estim)*x*log(Vtr/Vth)
+
+                '''
+                Check if a combination satisfies design requirements.
+                '''
 
                 if     fminDesign <= fTarget \
                    and fmaxDesign >= fTarget \
@@ -124,13 +150,13 @@ for vr2 in VR2:
                    and t3.maxHigh   > tMin \
                    and t3.maxLow    > tMin \
                    and t3.minDesign > tMin \
-                   and t3.minDesign > tMin \
+                   and t3.maxDesign > tMin \
                    and t4.minHigh   > tMin \
                    and t4.minLow    > tMin \
                    and t4.maxHigh   > tMin \
                    and t4.maxLow    > tMin \
                    and t4.minDesign > tMin \
-                   and t4.minDesign > tMin \
+                   and t4.maxDesign > tMin \
                    \
                    and DischMaxDesign <= iMax \
                    and DischMaxLow    <= iMax \
@@ -139,6 +165,10 @@ for vr2 in VR2:
                    and t3Estim >= (1.7-tDiff)*t4Estim\
                    and t3Estim <= (1.7+tDiff)*t4Estim\
                    :
+                       '''
+                       If a combination does meet requirements,
+                       add it to solList
+                       '''
                        solList.append([\
                                EngNumber(R7),\
                                EngNumber(vr2),\
@@ -149,7 +179,9 @@ for vr2 in VR2:
                                EngNumber(fminDesign),\
                                EngNumber(DischMaxDesign),\
                                EngNumber(DischMaxLow),\
-                               abs(round(t3Estim/t4Estim-1.7,3))
+                               abs(round(t3Estim/t4Estim-1.7,3)),\
+                               EngNumber(vr2Estim),\
+                               EngNumber(t3.minLow)
                                ])
 '''
 Here we use an arbitrarily named list, diffMin, to store all the values
@@ -160,9 +192,20 @@ gives that behaviour.
 diffMin=[]
 for i in range(0,len(solList)):
     diffMin.append(solList[i][9])    # Choose parameter to minimise
-print(solList[diffMin.index(min(diffMin))]) # Print raw final solution
+    '''
+    Note that with 'solList[i][9]' we minimise the 9th element of
+    solList, which is the delta from 1.7 of t3/t4. So, in this case
+    the final printed solution will be the one that is closest to
+    having the property t3=1.7*t4.
+    '''
+'''
+Here we just print the entire final solution for diagnosic
+purposes. This data should not need to be read by the user
+'''
+print('Diagnostic info\n',solList[diffMin.index(min(diffMin))]) # Print raw final solution
 fSol=solList[diffMin.index(min(diffMin))]
 
 # Print readable final solution
-print("R7 = %-*s VR2 = %-*s R6 = %-*s C5 = %-*s" % \
+print('Final solution:\n',\
+        "R7 = %-*s VR2 = %-*s R6 = %-*s C5 = %-*s" % \
     (5,fSol[0],5,fSol[1],5,fSol[2],5,fSol[3]))
